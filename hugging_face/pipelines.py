@@ -1,7 +1,7 @@
 # exploring the different type of pipelines , based on the NLP task, from transformer library
 import pandas as pd
 
-from hugging_face_transformers import pipeline
+from hugging_face import pipeline
 
 text = """Dear Amazon, last week I ordered an Optimus Prime action figure \
 from your online store in Germany. Unfortunately, when I opened the package, \
