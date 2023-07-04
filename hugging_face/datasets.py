@@ -5,6 +5,7 @@ import torch.nn.functional as F
 
 from datasets import list_datasets
 from datasets import load_dataset
+from transformers import AutoTokenizer, DistilBertTokenizer
 
 # view all datasets
 all_datasets = list_datasets()
@@ -76,22 +77,55 @@ print(categorical_df)
 pd.get_dummies(categorical_df['name'], dtype='int')
 
 input_ids = torch.tensor(input_ids)
-one_hot_encodings = F.one_hot(input_ids, num_classes= len(token2idx))
+one_hot_encodings = F.one_hot(input_ids, num_classes=len(token2idx))
 one_hot_encodings.shape
 
 print(f'Token: {tokenized_text[0]}')
 print(f'Tensor index: {input_ids[0]}')
 print(f'one-hot encoding: {one_hot_encodings[0]}')
 
+# word tokenization
+text = "Tokenizing text is a core task of NLP."
+tokenized_text = text.split()
+print(tokenized_text)
+
+token2idx = {ch: _idx for _idx, ch in enumerate(sorted(set(tokenized_text)))}
+print(token2idx)
+
+# subword tokenization:
+# subword tokenization using auto tokenizers from hugging face hub.
+
+model_ckpt = 'distilbert-base-uncased'
+
+# the autotokenizer retrieve's the model configuration, pretrained weights
+#  or vocabulary from the name of the model name/checkpoint
+tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
+
+# another way of importing the auto tokenizer based on the model name/checkpoint
+distilbert_tokenizer = DistilBertTokenizer.from_pretrained(model_ckpt)
+
+text = "Tokenizing text is a core task of NLP."
+encoded_text = tokenizer(text)
+print(encoded_text)
+
+tokens = tokenizer.convert_ids_to_tokens(encoded_text.input_ids)
+print(tokens)
+
+print(tokenizer.convert_tokens_to_string(tokens))
+
+# vocabulary size
+tokenizer.vocab_size
+
+# maximum context size (the maximum number of words
+# the auto-tokenizer will take as an input
+tokenizer.model_max_length
+
+# the names of the fields that the model expects in its forward pass.
+tokenizer.model_input_names
 
 
+def tokenize(batch):
+    return tokenizer(batch['text'], padding=True, truncation=True)
 
 
-
-
-
-
-
-
-
-
+print(tokenize(emotions['train'][:2]))
