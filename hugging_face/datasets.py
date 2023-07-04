@@ -129,3 +129,14 @@ def tokenize(batch):
 
 
 print(tokenize(emotions['train'][:2]))
+output_ = tokenize(emotions['train'][:2])
+
+tokenizer.convert_tokens_to_string(tokenizer.convert_ids_to_tokens(output_.input_ids[1]))
+emotions_encoded = emotions.map(tokenize, batched=True, batch_size=None)
+
+emotions_encoded['train'].features
+print(emotions_encoded['train'].column_names)
+
+
+
+
