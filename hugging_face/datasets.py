@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
+import torch
+import torch.nn.functional as F
 
 from datasets import list_datasets
 from datasets import load_dataset
@@ -71,8 +73,15 @@ categorical_df = pd.DataFrame(
     }
 )
 print(categorical_df)
-
 pd.get_dummies(categorical_df['name'], dtype='int')
+
+input_ids = torch.tensor(input_ids)
+one_hot_encodings = F.one_hot(input_ids, num_classes= len(token2idx))
+one_hot_encodings.shape
+
+print(f'Token: {tokenized_text[0]}')
+print(f'Tensor index: {input_ids[0]}')
+print(f'one-hot encoding: {one_hot_encodings[0]}')
 
 
 
