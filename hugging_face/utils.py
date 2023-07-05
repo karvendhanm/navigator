@@ -1,9 +1,15 @@
 import matplotlib.pyplot as plt
 
+from sklearn.metrics import accuracy_score, f1_score
 from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
+from transformers import AutoTokenizer
 
 # importing local modules
-import config
+from hugging_face import config
+
+# initializing AutoTokenizer
+tokenizer = AutoTokenizer.from_pretrained(config.model_ckpt)
+
 
 # Class of different styles
 class Style:
@@ -20,7 +26,6 @@ class Style:
 
 
 def draw_density_plot(df_embedding, cmaps, labels):
-
     # visualizing the different emotions in 2D
     fig, axes = plt.subplots(2, 3, figsize=(7, 5))
     axes = axes.flatten()
@@ -37,7 +42,6 @@ def draw_density_plot(df_embedding, cmaps, labels):
 
 
 def plot_confusion_matrix(y_pred, y_true, labels):
-
     cm = confusion_matrix(y_true, y_pred, normalize='true')
     fig, ax = plt.subplots(figsize=(6, 6))
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
@@ -47,7 +51,14 @@ def plot_confusion_matrix(y_pred, y_true, labels):
     return None
 
 
+def compute_metrics(pred):
+    # pred is a named tuple with attributes predictions and label_ids
+    labels = pred.label_ids
+    preds = pred.predictions.argmax(-1)
+    f1 = f1_score(labels, preds, average='weighted')
+    acc = accuracy_score(labels, preds)
+    return {'accuracy': acc, 'f1': f1}
 
 
-
-
+def tokenize(batch):
+    return tokenizer(batch['text'], padding=True, truncation=True)
