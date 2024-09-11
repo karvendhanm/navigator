@@ -27,6 +27,8 @@ input = torch.randn(2, 5)
 model = MultiLayerPerceptron(5, 3)
 model(input)
 
+list(model.parameters())
+
 
 
 
