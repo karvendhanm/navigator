@@ -21,3 +21,9 @@ print(f"Distribution over labels: {torch.softmax(model_outputs.logits, dim=1)}")
 
 labels = ['NEGATIVE', 'POSITIVE']
 print(labels[torch.argmax(model_outputs.logits)])
+
+_softmax = torch.softmax(model_outputs.logits, dim=1)
+
+label = torch.tensor([1])
+loss = torch.nn.functional.cross_entropy(model_outputs.logits, label)
+print('this is just for debugging')
