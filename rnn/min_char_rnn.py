@@ -10,8 +10,9 @@ ix_to_char = {_idx:elem for _idx, elem in enumerate(chars)}
 
 # hyperparameters
 hidden_size = 100 # size of the hidden layer of neurons
-seq_length = 25 # number of steps for which we do the backpropagation for gradient update
-learning = 1e-1
+# TBPTT (truncated back propagation through time)
+seq_length = 25 # number of time steps for which we do the backpropagation for gradient update
+learning_rate = 1e-1
 
 # model parameters
 # input to hidden weight matrix
@@ -36,7 +37,7 @@ def lossFun(inputs, targets, hprev):
     hs[-1] = np.copy(hprev)
     loss = 0
     # forward pass
-    for t in xrange(len(inputs)):
+    for t in range(len(inputs)):
         xs[t] = np.zeros((vocab_size, 1))  # encode in 1-of-k representation
         xs[t][inputs[t]] = 1
         hs[t] = np.tanh(np.dot(Wxh, xs[t]) + np.dot(Whh, hs[t - 1]) + bh)  # hidden state
@@ -47,10 +48,9 @@ def lossFun(inputs, targets, hprev):
     dWxh, dWhh, dWhy = np.zeros_like(Wxh), np.zeros_like(Whh), np.zeros_like(Why)
     dbh, dby = np.zeros_like(bh), np.zeros_like(by)
     dhnext = np.zeros_like(hs[0])
-    for t in reversed(xrange(len(inputs))):
+    for t in reversed(range(len(inputs))):
         dy = np.copy(ps[t])
-        dy[targets[
-            t]] -= 1  # backprop into y. see http://cs231n.github.io/neural-networks-case-study/#grad if confused here
+        dy[targets[t]] -= 1  # backprop into y. see http://cs231n.github.io/neural-networks-case-study/#grad if confused here
         dWhy += np.dot(dy, hs[t].T)
         dby += dy
         dh = np.dot(Why.T, dy) + dhnext  # backprop into h
@@ -72,7 +72,7 @@ def sample(h, seed_ix, n):
     x = np.zeros((vocab_size, 1))
     x[seed_ix] = 1
     ixes = []
-    for t in xrange(n):
+    for t in range(n):
         h = np.tanh(np.dot(Wxh, x) + np.dot(Whh, h) + bh)
         y = np.dot(Why, h) + by
         p = np.exp(y) / np.sum(np.exp(y))
@@ -99,8 +99,7 @@ while True:
     if n % 100 == 0:
         sample_ix = sample(hprev, inputs[0], 200)
         txt = ''.join(ix_to_char[ix] for ix in sample_ix)
-        print
-        '----\n %s \n----' % (txt,)
+        print(f'----\n {txt} \n----')
 
     # forward seq_length characters through the net and fetch gradient
     loss, dWxh, dWhh, dWhy, dbh, dby, hprev = lossFun(inputs, targets, hprev)
