@@ -49,7 +49,7 @@ training_args = TrainingArguments(output_dir=model_name,
                                   evaluation_strategy='epoch',
                                   disable_tqdm=True,
                                   logging_steps=logging_steps,
-                                  push_to_hub=True,
+                                  push_to_hub=False,
                                   log_level='error'
                                   )
 
@@ -61,3 +61,4 @@ trainer = Trainer(model=model, args=training_args,
 trainer.train()
 
 print('this is just for debugging')
+
