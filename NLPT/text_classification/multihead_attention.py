@@ -48,7 +48,8 @@ class MultiHeadAttention(nn.Module):
         self.output_linear = nn.Linear(embed_dim, embed_dim)
 
     def forward(self, hidden_state):
-        x = torch.cat([h(hidden_state) for h in self.heads], dim=-1)
+        _lst = [h(hidden_state) for h in self.heads]
+        x = torch.cat(_lst, dim=-1)
         x = self.output_linear(x)
         return x
 
