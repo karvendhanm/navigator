@@ -7,12 +7,12 @@ import torch
 import torch.nn.functional as F
 
 model_ckpt = 'bert-base-uncased'
-text = ['time flies like an arrow', 'fruit flies like a banana']
+text = ['time flies like an arrow', 'trasformers have revolutionized NLP']
 
 config = AutoConfig.from_pretrained(model_ckpt)
 tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
 
-inputs = tokenizer(text, return_tensors='pt', add_special_tokens=False)
+inputs = tokenizer(text, return_tensors='pt', add_special_tokens=False, padding=True, truncation=True)
 token_emb = nn.Embedding(config.vocab_size, config.hidden_size)
 input_embeds = token_emb(inputs.input_ids)
 
@@ -100,4 +100,70 @@ class TransformerEncoderLayer(nn.Module):
 
 encoder_layer = TransformerEncoderLayer(config)
 encoder_layer_outputs = encoder_layer(input_embeds)
-print(encoder_layer_outputs.size())
+
+# positional embeddings
+# creating a custom embedding module
+class Embeddings(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.token_embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
+        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.layer_norm = nn.LayerNorm(config.hidden_size, eps=1e-12)
+        self.dropout = nn.Dropout()
+
+    def forward(self, input_ids):
+        # create input ids for position sequence
+        seq_length = input_ids.size(-1)
+        position_ids = torch.arange(seq_length, dtype=torch.long).unsqueeze(0)
+        token_embeddings = self.token_embeddings(input_ids)
+        position_embeddings = self.position_embeddings(position_ids)
+        embeddings = token_embeddings + position_embeddings
+        embeddings = self.layer_norm(embeddings)
+        embeddings = self.dropout(embeddings)
+        return embeddings
+
+
+embedding_layer = Embeddings(config)
+final_positional_embeddings = embedding_layer(inputs.input_ids)
+
+
+class TransformerEncoder(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.embeddings = Embeddings(config)
+        self.layers = nn.ModuleList([TransformerEncoderLayer(config) for _ in range(config.num_hidden_layers)])
+
+    def forward(self, x):
+        x = self.embeddings(x)
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+encoder = TransformerEncoder(config)
+encoder_outputs = encoder(inputs.input_ids)
+print(encoder_outputs.size())
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
