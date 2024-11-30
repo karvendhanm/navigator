@@ -23,6 +23,7 @@ def scaled_dot_product_attention(query, key, value):
     attention_weights = F.softmax(attention_scores, dim=-1)
     return torch.bmm(attention_weights, value)
 
+
 class AttentionHead(nn.Module):
     def __init__(self, embed_dim, head_dim):
         super().__init__()
@@ -55,4 +56,25 @@ class MultiHeadAttention(nn.Module):
 
 
 multihead_attn = MultiHeadAttention(config)
-attn_output = multihead_attn(input_embeds)
+attn_outputs = multihead_attn(input_embeds)
+
+
+class FeedForward(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.linear1 = nn.Linear(config.hidden_size, config.intermediate_size)
+        self.linear2 = nn.Linear(config.intermediate_size, config.hidden_size)
+        self.gelu = nn.GELU()
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+
+    def forward(self, x):
+        x = self.linear1(x)
+        x = self.gelu(x)
+        x = self.linear2(x)
+        x = self.dropout(x)
+        return x
+
+
+feed_forward = FeedForward(config)
+ff_outputs = feed_forward(attn_outputs)
+print(ff_outputs.size())
