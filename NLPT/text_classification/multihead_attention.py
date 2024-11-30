@@ -19,7 +19,7 @@ input_embeds = token_emb(inputs.input_ids)
 
 def scaled_dot_product_attention(query, key, value):
     dim_k = key.size(-1)
-    attention_scores = torch.bmm(query, key.transpose(1, 2))/sqrt(dim_k)
+    attention_scores = torch.bmm(query, key.transpose(1, 2)) / sqrt(dim_k)
     attention_weights = F.softmax(attention_scores, dim=-1)
     return torch.bmm(attention_weights, value)
 
@@ -101,6 +101,7 @@ class TransformerEncoderLayer(nn.Module):
 encoder_layer = TransformerEncoderLayer(config)
 encoder_layer_outputs = encoder_layer(input_embeds)
 
+
 # positional embeddings
 # creating a custom embedding module
 class Embeddings(nn.Module):
@@ -139,31 +140,27 @@ class TransformerEncoder(nn.Module):
             x = layer(x)
         return x
 
+
 encoder = TransformerEncoder(config)
 encoder_outputs = encoder(inputs.input_ids)
-print(encoder_outputs.size())
 
 
+# Adding a full-fledged sequence classification head to the encoder
+class TransformerForSequenceClassification(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.encoder = TransformerEncoder(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        self.classifier = nn.Linear(config.hidden_size, config.num_labels)
+
+    def forward(self, x):
+        x = self.encoder(x)[:, 0, :]  # typically we will be using the [CLS] token for text classification tasks
+        x = self.dropout(x)
+        x = self.classifier(x)
+        return x
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+config.num_labels = 3
+encoder_classifier = TransformerForSequenceClassification(config)
+classifier_results = encoder_classifier(inputs.input_ids)
+print(classifier_results.size())
