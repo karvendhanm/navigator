@@ -7,7 +7,7 @@ import torch
 import torch.nn.functional as F
 
 model_ckpt = 'bert-base-uncased'
-text = 'time flies like an arrow'
+text = ['time flies like an arrow', 'fruit flies like a banana']
 
 config = AutoConfig.from_pretrained(model_ckpt)
 tokenizer = AutoTokenizer.from_pretrained(model_ckpt)
@@ -77,4 +77,27 @@ class FeedForward(nn.Module):
 
 feed_forward = FeedForward(config)
 ff_outputs = feed_forward(attn_outputs)
-print(ff_outputs.size())
+ff_outputs.size()
+
+
+class TransformerEncoderLayer(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.layer_norm1 = nn.LayerNorm(config.hidden_size)
+        self.layer_norm2 = nn.LayerNorm(config.hidden_size)
+        self.attention = MultiHeadAttention(config)
+        self.feed_forward = FeedForward(config)
+
+    def forward(self, x):
+        hidden_state1 = self.layer_norm1(x)
+        # apply attention with a skip connection
+        x = x + self.attention(hidden_state1)
+        hidden_state2 = self.layer_norm2(x)
+        # apply feed forward with a skip connection
+        x = x + self.feed_forward(hidden_state2)
+        return x
+
+
+encoder_layer = TransformerEncoderLayer(config)
+encoder_layer_outputs = encoder_layer(input_embeds)
+print(encoder_layer_outputs.size())
