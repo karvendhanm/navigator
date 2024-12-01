@@ -19,6 +19,8 @@ class Embeddings(nn.Module):
         super().__init__()
         self.token_embeddings = nn.Embedding(config.vocab_size, config.hidden_size)
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.dropout = nn.Dropout()
 
     def forward(self, input_ids):
         seq_len = input_ids.size(-1)
@@ -26,6 +28,8 @@ class Embeddings(nn.Module):
         position_embeddings = self.position_embeddings(position_ids)
         token_embeddings = self.token_embeddings(input_ids)
         embeddings = position_embeddings + token_embeddings
+        embeddings = self.layer_norm(embeddings)
+        embeddings = self.dropout(embeddings)
         return embeddings
 
 
@@ -46,14 +50,12 @@ class AttentionHead(nn.Module):
         self.q = nn.Linear(embed_dim, head_dim)
         self.k = nn.Linear(embed_dim, head_dim)
         self.v = nn.Linear(embed_dim, head_dim)
-        self.linear_output = nn.Linear(head_dim, head_dim)
 
     def forward(self, hidden_state):
-        attention_output = scaled_dot_product_attention(self.q(hidden_state),
-                                                        self.k(hidden_state),
-                                                        self.v(hidden_state))
-        linear_output = self.linear_output(attention_output)
-        return linear_output
+        attention_outputs = scaled_dot_product_attention(self.q(hidden_state),
+                                                         self.k(hidden_state),
+                                                         self.v(hidden_state))
+        return attention_outputs
 
 
 class MultiHeadAttention(nn.Module):
@@ -63,11 +65,11 @@ class MultiHeadAttention(nn.Module):
         self.num_heads = config.num_attention_heads
         self.head_dim = self.embed_dim // self.num_heads
         self.heads = nn.ModuleList([AttentionHead(self.embed_dim, self.head_dim) for _ in range(self.num_heads)])
-        self.num_hidden_layers = config.num_hidden_layers
+        self.output_linear = nn.Linear(config.hidden_size, config.hidden_size)
 
     def forward(self, x):
-        for layer in range(self.num_hidden_layers):
-            x = torch.cat([h(x) for h in self.heads], dim=-1)
+        x = torch.cat([h(x) for h in self.heads], dim=-1)
+        x = self.output_linear(x)
         return x
 
 
@@ -84,10 +86,14 @@ class FeedForwardLayer(nn.Module):
         # increasing the intermediate layer size.
         self.linear1 = nn.Linear(config.hidden_size, config.intermediate_size)
         self.linear2 = nn.Linear(config.intermediate_size, config.hidden_size)
+        self.gelu = nn.GELU()
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, x):
         x = self.linear1(x)
+        x = self.gelu(x)
         x = self.linear2(x)
+        x = self.dropout(x)
         return x
 
 
@@ -96,12 +102,10 @@ feed_forward_outputs = feed_forward(multihead_attention_outputs)
 feed_forward_outputs.size()
 
 
-
 # here we introduce skip connections and layer normalization.
-class EncoderTransformer(nn.Module):
+class EncoderTransformerLayer(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.num_hidden_layers = config.num_hidden_layers
         self.layer_norm1 = nn.LayerNorm(config.hidden_size)
         self.attention_layer = MultiHeadAttention(config)
         self.layer_norm2 = nn.LayerNorm(config.hidden_size)
@@ -115,27 +119,45 @@ class EncoderTransformer(nn.Module):
         return x
 
 
-encoder = EncoderTransformer(config)
+encoder = EncoderTransformerLayer(config)
 encoder_outputs = encoder(embedding_outputs)
 encoder_outputs.size()
 
 
 # Adding a classification head to the encoder
-class EncoderClassifier(nn.Module):
+class TransformerEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.encoder_layer = EncoderTransformer(config)
+        self.embeddings = Embeddings(config)
+        self.layers = nn.ModuleList([EncoderTransformerLayer(config) for _ in range(config.num_hidden_layers)])
+
+    def forward(self, x):
+        x = self.embeddings(x)
+        for layer in self.layers:
+            x = layer(x)
+        return x
+
+
+transfromer_encoder = TransformerEncoder(config)
+transfromer_encoder_outputs = transfromer_encoder(inputs.input_ids)
+
+
+# Adding a full-fledged sequence classification head to the encoder
+class TransformerForSequenceClassification(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.encoder = TransformerEncoder(config)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
         self.classifier = nn.Linear(config.hidden_size, config.num_labels)
 
     def forward(self, x):
-        x = self.encoder_layer(x)[:, 0, :]    # choosing only the hidden state representation of first token, [CLS]
+        x = self.encoder(x)[:, 0, :]  # typically we will be using the [CLS] token for text classification tasks
+        x = self.dropout(x)
         x = self.classifier(x)
         return x
 
 
 config.num_labels = 3
-encoder_classifier = EncoderClassifier(config)
-logits = encoder_classifier(embedding_outputs)
-print(logits.size())
-
-
+encoder_classifier = TransformerForSequenceClassification(config)
+classifier_results = encoder_classifier(inputs.input_ids)
+print(classifier_results.size())
