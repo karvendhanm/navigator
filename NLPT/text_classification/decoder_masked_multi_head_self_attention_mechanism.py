@@ -20,4 +20,7 @@ attention_scores = torch.bmm(query, key.transpose(1, 2)) / math.sqrt(dim_k)
 
 seq_len = inputs.input_ids.size(-1)
 mask = torch.tril(torch.ones(seq_len, seq_len)).unsqueeze(0)
-attention_scores.masked_fill(mask == 0, float("-inf"))
+attention_scores = attention_scores.masked_fill(mask == 0, float("-inf"))
+attention_weights = nn.functional.softmax(attention_scores, dim=-1)
+weighted_score = torch.bmm(attention_weights, value)
+print('this is just for debugging')
