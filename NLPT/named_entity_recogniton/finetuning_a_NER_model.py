@@ -15,17 +15,14 @@ import torch.nn as nn
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-xlmr_model_name = 'xlm-roberta-base'
-
 # langs = ['de', 'fr', 'it', 'en']
 # fracs = [0.629, 0.229, 0.084, 0.059]
 #
 # panx_ch = defaultdict(DatasetDict)
 # for lang, frac in zip(langs, fracs):
-#     ds_dict = load_dataset(path = 'xtreme', name=f'PAN-X.{lang}')
+#     ds_dict = load_dataset(path='xtreme', name=f'PAN-X.{lang}')
 #     for key, value in ds_dict.items():
 #         panx_ch[lang][key] = value.shuffle(seed=0).select(range(int(frac * value.num_rows)))
-# panx_ch
 #
 # with open('./data/panx_ch.pkl', 'wb') as f:
 #     pickle.dump(panx_ch, f)
@@ -70,6 +67,7 @@ tags = panx_ch['de']['train'].features['ner_tags'].feature
 index2tag = {idx: tag for idx, tag in enumerate(tags.names)}
 tag2index = {tag: idx for idx, tag in enumerate(tags.names)}
 
+xlmr_model_name = 'xlm-roberta-base'
 xlmr_tokenizer = AutoTokenizer.from_pretrained(xlmr_model_name)
 xlmr_config = AutoConfig.from_pretrained(xlmr_model_name,
                                          num_labels=tags.num_classes,
