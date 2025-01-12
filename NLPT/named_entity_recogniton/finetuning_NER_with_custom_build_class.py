@@ -101,8 +101,10 @@ class XLMRoBERTaForTokenClassificationCustom(RobertaPreTrainedModel):
                                      hidden_states=outputs.hidden_states,
                                      attentions=outputs.attentions)
 
-xlmr_model = XLMRoBERTaForTokenClassificationCustom.from_pretrained(model_checkpoint,
-                                                       config=xlmr_config)
+
+def model_init():
+    return XLMRoBERTaForTokenClassificationCustom.from_pretrained(model_checkpoint,
+                                                       config=xlmr_config).to(device)
 
 def align_predictions(label_ids, predictions):
     preds = np.argmax(predictions, axis=2)
@@ -148,7 +150,7 @@ training_args = TrainingArguments(output_dir=model_name,
                                   )
 
 data_collator = DataCollatorForTokenClassification(xlmr_tokenizer)
-trainer = Trainer(model=xlmr_model,
+trainer = Trainer(model_init=model_init,
                   args=training_args,
                   data_collator=data_collator,
                   train_dataset=panx_de_encoded['train'],
