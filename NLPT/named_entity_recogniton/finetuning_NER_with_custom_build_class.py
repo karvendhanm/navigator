@@ -160,7 +160,16 @@ trainer = Trainer(model_init=model_init,
 trainer.train()
 
 
+def tag_text(text, tokenizer):
+    tokens = tokenizer(str).tokens()
+    input_ids = tokenizer(str, return_tensors='pt').input_ids.to(device)
+    class_label = torch.argmax(trainer.model(input_ids).logits, axis=-1)
+    class_label = class_label[0].cpu().numpy()
+    predictions = [idx2tags[idx] for idx in class_label]
+    return pd.DataFrame([tokens, predictions], index=['tokens', 'NER'])
 
+text = 'Jeff Dean ist ein Informatiker bei Google in Kalofornien'
+tag_text(text, xlmr_tokenizer)
 
 
 
