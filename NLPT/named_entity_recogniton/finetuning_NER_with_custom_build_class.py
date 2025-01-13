@@ -11,6 +11,7 @@ from transformers.modeling_outputs import TokenClassifierOutput
 from transformers.models.roberta.modeling_roberta import RobertaModel, RobertaPreTrainedModel
 
 import numpy as np
+import pandas as pd
 import pickle
 import torch
 import torch.nn as nn
@@ -51,7 +52,7 @@ def tokenize_and_align_labels(lazy_batch):
                 label_ids.append(-100)
             else:
                 label_ids.append(ner_tag[token_id])
-            previous_token_id = token_id
+            previous_otken_id = token_id
         labels.append(label_ids)
     tokenized_inputs['labels'] = labels
     return tokenized_inputs
@@ -161,8 +162,8 @@ trainer.train()
 
 
 def tag_text(text, tokenizer):
-    tokens = tokenizer(str).tokens()
-    input_ids = tokenizer(str, return_tensors='pt').input_ids.to(device)
+    tokens = tokenizer(text).tokens()
+    input_ids = tokenizer(text, return_tensors='pt').input_ids.to(device)
     class_label = torch.argmax(trainer.model(input_ids).logits, axis=-1)
     class_label = class_label[0].cpu().numpy()
     predictions = [idx2tags[idx] for idx in class_label]
