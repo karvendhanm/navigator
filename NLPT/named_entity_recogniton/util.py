@@ -1,11 +1,23 @@
-
-
 import pandas as pd
 import torch
+
+from torch.nn.functional import cross_entropy
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
+def forward_pass_with_label(batch, data_collator, model):
+    features = [dict(zip(batch, t)) for t in zip(*batch.values())]
+    batch = data_collator(features)
+    input_ids = batch['input_ids'].to(device)
+    attention_mask = batch['attention_mask'].to(device)
+    labels = batch['labels'].to(device)
+    with torch.no_grad():
+        output = model(input_ids, attention_mask)
+        predicted_label = torch.argmax(output.logits, axis=-1).cpu().numpy()
+    loss = cross_entropy(output.logits.view(-1, 7), labels.view(-1), reduction='none')
+    loss = loss.view(len(input_ids), -1).cpu().numpy()
+    return {'loss':loss, 'predicted_label':predicted_label}
 
 
 def tokenize_and_align_labels(lazy_batch, tokenizer):
@@ -22,7 +34,7 @@ def tokenize_and_align_labels(lazy_batch, tokenizer):
                 label_ids.append(-100)
             else:
                 label_ids.append(ner_tag[token_id])
-            previous_otken_id = token_id
+            previous_token_id = token_id
         labels.append(label_ids)
     tokenized_inputs['labels'] = labels
     return tokenized_inputs
