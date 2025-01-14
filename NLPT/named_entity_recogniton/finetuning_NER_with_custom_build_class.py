@@ -2,8 +2,8 @@
 from collections import defaultdict
 from datasets import load_dataset, DatasetDict
 from seqeval.metrics import f1_score
+from torch.nn.functional import cross_entropy
 from transformers import AutoTokenizer, AutoConfig
-from transformers import AutoModelForTokenClassification
 from transformers import DataCollatorForTokenClassification
 from transformers import Trainer, TrainingArguments
 from transformers import XLMRobertaConfig
@@ -169,8 +169,40 @@ def tag_text(text, tokenizer):
     predictions = [idx2tags[idx] for idx in class_label]
     return pd.DataFrame([tokens, predictions], index=['tokens', 'NER'])
 
+
 text = 'Jeff Dean ist ein Informatiker bei Google in Kalofornien'
 tag_text(text, xlmr_tokenizer)
+
+# saving the model and the tokenizer.
+model = trainer.model
+tokenizer = trainer.tokenizer
+
+model.save_pretrained('./model_checkpoints/ner_model_for_token_classification')
+tokenizer.save_pretrained('./tokenizer_checkpoints/ner_tokenizer_for_token_classification')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
