@@ -17,7 +17,7 @@ import torch
 import torch.nn as nn
 
 # loading the serialized data
-with open('./data/panx_ch_short_data.pkl', 'rb') as fh:
+with open('./data/panx_ch.pkl', 'rb') as fh:
     panx_ch = pickle.load(fh)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -52,7 +52,7 @@ def tokenize_and_align_labels(lazy_batch):
                 label_ids.append(-100)
             else:
                 label_ids.append(ner_tag[token_id])
-            previous_otken_id = token_id
+            previous_token_id = token_id
         labels.append(label_ids)
     tokenized_inputs['labels'] = labels
     return tokenized_inputs
@@ -65,7 +65,7 @@ def encode_panx_dataset(panx_ch):
                        remove_columns=['tokens', 'ner_tags', 'langs'])
 
 
-panx_de_encoded = encode_panx_dataset(panx_ch['de'])
+panx_de_encoded = encode_panx_dataset(panx_ch['de']['validation'])
 
 
 # creating a custom class for token classification
@@ -177,8 +177,8 @@ tag_text(text, xlmr_tokenizer)
 model = trainer.model
 tokenizer = trainer.tokenizer
 
-model.save_pretrained('./model_checkpoints/ner_model_for_token_classification')
-tokenizer.save_pretrained('./tokenizer_checkpoints/ner_tokenizer_for_token_classification')
+# model.save_pretrained('./model_checkpoints/ner_model_for_token_classification')
+# tokenizer.save_pretrained('./tokenizer_checkpoints/ner_tokenizer_for_token_classification')
 
 
 
