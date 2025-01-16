@@ -98,13 +98,34 @@ df_tokens['loss'] = df_tokens['loss'].astype(float).round(2)
 )
 
 
-def plot_confusion_matrix(y_true, y_pred, labels):
-    cm = confusion_matrix(y_true, y_pred, normalize='true')
-    fig, ax = plt.subplots(figsize=(6, 6))
-    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
-    disp.plot(cmap='Blues', values_format='.2f', ax=ax, colorbar=False)
-    plt.title('Normalized confusion matrix')
-    plt.show()
+# def plot_confusion_matrix(y_true, y_pred, labels):
+#     cm = confusion_matrix(y_true, y_pred, normalize='true')
+#     fig, ax = plt.subplots(figsize=(6, 6))
+#     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
+#     disp.plot(cmap='Blues', values_format='.2f', ax=ax, colorbar=False)
+#     plt.title('Normalized confusion matrix')
+#     plt.show()
+#
+#
+# plot_confusion_matrix(df_tokens['labels'], df_tokens['predicted_label'], tags.names)
 
 
-plot_confusion_matrix(df_tokens['labels'], df_tokens['predicted_label'], tags.names)
+def get_samples(df):
+    for _, row in df.iterrows():
+        labels, preds, tokens, losses = [], [], [], []
+        for i, mask in enumerate(row["attention_mask"]):
+            if i not in {0, len(row["attention_mask"])}:
+                labels.append(row["labels"][i])
+                preds.append(row["predicted_label"][i])
+                tokens.append(row["input_tokens"][i])
+                losses.append(f"{row['loss'][i]:.2f}")
+        df_tmp = pd.DataFrame({"tokens": tokens, "labels": labels,
+                               "preds": preds, "losses": losses}).T
+        yield df_tmp
+
+
+df_err["total_loss"] = df_err["loss"].apply(sum)
+df_tmp = df_err.sort_values(by="total_loss", ascending=False).head(3)
+
+for sample in get_samples(df_tmp):
+    print(sample)
