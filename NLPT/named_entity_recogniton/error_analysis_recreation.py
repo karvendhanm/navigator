@@ -75,6 +75,9 @@ def compute_merics(eval_prediction):
 
 panx_de_encoded = encode_panx_ch_data(panx_ch['de'])
 
+with open('./data/panx_de_encoded.pkl', 'wb') as fh:
+    pickle.dump(panx_de_encoded, fh)
+
 
 def model_init():
     return XLMRobertaForTokenClassification.from_pretrained(model_checkpoint,
