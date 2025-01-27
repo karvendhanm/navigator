@@ -83,7 +83,7 @@ res2 = (
 
 
 def plot_confusion_matrix(y_true, y_pred, labels):
-    cm = confusion_matrix(y_true, y_pred, labels=labels, normalize='true')
+    cm = confusion_matrix(y_true, y_pred, normalize='true')
     fig, ax = plt.subplots(figsize=(6, 6))
     disp = ConfusionMatrixDisplay(cm, display_labels=labels)
     disp.plot(ax=ax, cmap='Blues', values_format='.2f', colorbar=False)
@@ -91,7 +91,7 @@ def plot_confusion_matrix(y_true, y_pred, labels):
     plt.show()
 
 
-plot_confusion_matrix(df_tokens['labels'], df_tokens['predicted_label'], tags.names)
+# plot_confusion_matrix(df_tokens['labels'], df_tokens['predicted_label'], tags.names)
 
 
 
