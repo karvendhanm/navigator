@@ -1,9 +1,10 @@
 # note: this module is a continuation of module error_analysis_recreation.py
-
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from torch.nn.functional import cross_entropy
 from transformers import AutoTokenizer, AutoModelForTokenClassification
 from transformers import DataCollatorForTokenClassification
 
+import matplotlib.pyplot as plt
 import pandas as pd
 import pickle
 import torch
@@ -81,6 +82,16 @@ res2 = (
 )
 
 
+def plot_confusion_matrix(y_true, y_pred, labels):
+    cm = confusion_matrix(y_true, y_pred, labels=labels, normalize='true')
+    fig, ax = plt.subplots(figsize=(6, 6))
+    disp = ConfusionMatrixDisplay(cm, display_labels=labels)
+    disp.plot(ax=ax, cmap='Blues', values_format='.2f', colorbar=False)
+    plt.title('Normalized confusion matrix')
+    plt.show()
+
+
+plot_confusion_matrix(df_tokens['labels'], df_tokens['predicted_label'], tags.names)
 
 
 
