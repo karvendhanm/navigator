@@ -60,6 +60,7 @@ df_tokens = df.apply(pd.Series.explode)
 df_tokens = df_tokens.query("labels != 'IGN'")
 df_tokens['loss'] = df_tokens['loss'].astype(float).round(2)
 
+# Average and total losses  at the token level
 res1 = (
     df_tokens.groupby('input_tokens')[['loss']]
     .agg(['count', 'mean', 'sum'])
@@ -71,6 +72,7 @@ res1 = (
     .T
 )
 
+# Average and total losses  at the label level
 res2 = (
     df_tokens.groupby('labels')[['loss']]
     .agg(['count', 'mean', 'sum'])
@@ -92,6 +94,29 @@ def plot_confusion_matrix(y_true, y_pred, labels):
 
 
 # plot_confusion_matrix(df_tokens['labels'], df_tokens['predicted_label'], tags.names)
+
+# Sequences with high losses.
+def get_samples(df):
+    for _, row in df.iterrows():
+        labels, preds, tokens, losses = [], [], [], []
+        for i, mask in enumerate(row['attention_mask']):
+            if i not in {0, len(row['attention_mask'])}:
+                labels.append(row['labels'][i])
+                preds.append(row['predicted_label'][i])
+                tokens.append(row['input_tokens'][i])
+                losses.append(f"{row['loss'][i]:.2f}")
+        df_tmp = pd.DataFrame({'tokens':tokens, 'labels':labels,
+                               'preds':preds, 'losses':losses}).T
+        yield df_tmp
+
+
+
+# using the unexploded data.
+df['total_loss'] = df['loss'].apply(lambda x: sum(x))
+df_tmp = df.sort_values(by='total_loss', ascending=False).head(3)
+
+for sample in get_samples(df_tmp):
+    print(sample)
 
 
 
