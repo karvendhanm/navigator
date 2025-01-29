@@ -11,9 +11,8 @@ import torch
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-model = AutoModelForTokenClassification.from_pretrained(
-    './model_checkpoints/panx_de_ner_model_for_token_classification').to(device)
-tokenizer = AutoTokenizer.from_pretrained('./tokenizer_checkpoints/panx_de_ner_tokenizer_for_token_classification')
+model = AutoModelForTokenClassification.from_pretrained('./data/model_panx_de_ner').to(device)
+tokenizer = AutoTokenizer.from_pretrained('./data/tokenizer_panx_de_ner')
 data_collator = DataCollatorForTokenClassification(tokenizer)
 
 
