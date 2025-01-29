@@ -3,9 +3,11 @@ from transformers import AutoTokenizer, AutoConfig
 from transformers import DataCollatorForTokenClassification
 from transformers import Trainer, TrainingArguments
 from transformers import XLMRobertaForTokenClassification
+from typing import Optional, Dict, Any
 
 import json
 import numpy as np
+import os
 import pickle
 import torch
 
@@ -116,12 +118,49 @@ trainer = Trainer(model_init=model_init,
                   tokenizer=xlmr_tokenizer)
 trainer.train()
 
-# saving the model, tokenizer and training args.
-trainer.save_model('./NLPT/named_entity_recognition/trainer_store/model_checkpoint/panx_de_ner_model_for_token_classification')
-trainer.tokenizer.save_pretrained('./NLPT/named_entity_recognition/trainer_store/tokenizer_checkpoint/panx_de_ner_tokenizer_for_token_classification')
+# trainer.model.save_pretrained('./data/model_panx_de_ner')
+# trainer.tokenizer.save_pretrained('./data/tokenizer_panx_de_ner')
 
-with open("./NLPT/named_entity_recognition/trainer_store/training_args/panx_de_ner_training_args_for_token_classification.json", "w") as f:
-    json.dump(training_args.to_dict(), f)
+def save_trainer_state(trainer: Trainer, save_dir: str, additional_info: Optional[Dict[Any, Any]] = None):
+    """
+    Save the complete state of a Hugging Face Trainer object.
 
-# model.save_pretrained('./model_checkpoints/panx_de_ner_model_for_token_classification')
-# tokenizer.save_pretrained('./tokenizer_checkpoints/panx_de_ner_tokenizer_for_token_classification')
+    Args:
+        trainer: The Trainer object to save
+        save_dir: Directory to save the trainer state
+        additional_info: Optional dictionary of additional information to save
+    """
+    os.makedirs(save_dir, exist_ok=True)
+
+    # Save the model
+    trainer.save_model(save_dir)
+
+    # Save the optimizer and scheduler states
+    if trainer.optimizer is not None:
+        torch.save(trainer.optimizer.state_dict(),
+                   os.path.join(save_dir, "optimizer.pt"))
+
+    if trainer.lr_scheduler is not None:
+        torch.save(trainer.lr_scheduler.state_dict(),
+                   os.path.join(save_dir, "scheduler.pt"))
+
+    # Save training state
+    state_dict = {
+        "epoch": trainer.state.epoch,
+        "global_step": trainer.state.global_step,
+        "max_steps": trainer.state.max_steps,
+        "num_train_epochs": trainer.state.num_train_epochs,
+        "log_history": trainer.state.log_history,
+        "best_metric": trainer.state.best_metric,
+        "best_model_checkpoint": trainer.state.best_model_checkpoint,
+    }
+
+    # Add any additional info
+    if additional_info:
+        state_dict["additional_info"] = additional_info
+
+    with open(os.path.join(save_dir, "trainer_state.json"), "w") as f:
+        json.dump(state_dict, f, indent=2)
+
+
+save_trainer_state(trainer, './data/panx_de_checkpoints')

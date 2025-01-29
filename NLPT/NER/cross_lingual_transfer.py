@@ -1,24 +1,17 @@
 from seqeval.metrics import f1_score
-from transformers import AutoTokenizer, AutoModelForTokenClassification
+from transformers import AutoConfig, AutoModelForTokenClassification, AutoTokenizer
 from transformers import DataCollatorForTokenClassification
-from transformers import Trainer
+from transformers import Trainer, TrainingArguments
+from transformers import XLMRobertaForTokenClassification
+from typing import Dict, Any
 
 import json
+import numpy as np
+import os
 import pickle
 import torch
 
-# config
-ts = './data/trainer/'
-task = '/ner_panx_de'
-
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-model = AutoModelForTokenClassification.from_pretrained(ts + 'model' + task)
-tokenizer = AutoTokenizer.from_pretrained(ts + 'tokenizer' + task)
-data_collator = DataCollatorForTokenClassification(tokenizer)
-
-with open(ts + 'training_args/ner_panx_de.json', 'r') as fh:
-    training_args = json.load(fh)
 
 with open('./data/panx_ch.pkl', 'rb') as fh:
     panx_ch = pickle.load(fh)
@@ -31,6 +24,11 @@ id2label = {idx:tag for idx, tag in enumerate(tags.names)}
 with open('./data/panx_de_encoded.pkl', 'rb') as fh:
     panx_de_encoded = pickle.load(fh)
 
+model_checkpoint = 'xlm-roberta-base'
+xlmr_tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+xlmr_config = AutoConfig.from_pretrained(model_checkpoint,
+                                         label2id=label2id,
+                                         id2label=id2label)
 
 def align_predictions(label_ids, predictions):
     preds = np.argmax(predictions, axis=-1)
@@ -54,15 +52,90 @@ def compute_merics(eval_prediction):
     return {'f1':f1_score(y_true, y_pred)}
 
 
-trainer = Trainer(model=model,
+def load_trainer_state(trainer: Trainer, load_dir: str) -> Dict[str, Any]:
+    """
+    Load a previously saved Trainer state.
+
+    Args:
+        trainer: The Trainer object to load the state into
+        load_dir: Directory containing the saved state
+
+    Returns:
+        Dictionary containing any additional info that was saved
+    """
+    # Load the model
+    trainer.model.load_state_dict(
+        torch.load(os.path.join(load_dir, "pytorch_model.bin"))
+    )
+
+    # Load optimizer state if it exists
+    optimizer_path = os.path.join(load_dir, "optimizer.pt")
+    if os.path.exists(optimizer_path) and trainer.optimizer is not None:
+        trainer.optimizer.load_state_dict(
+            torch.load(optimizer_path)
+        )
+
+    # Load scheduler state if it exists
+    scheduler_path = os.path.join(load_dir, "scheduler.pt")
+    if os.path.exists(scheduler_path) and trainer.lr_scheduler is not None:
+        trainer.lr_scheduler.load_state_dict(
+            torch.load(scheduler_path)
+        )
+
+    # Load training state
+    with open(os.path.join(load_dir, "trainer_state.json"), "r") as f:
+        state_dict = json.load(f)
+
+    # Update trainer state
+    trainer.state.epoch = state_dict["epoch"]
+    trainer.state.global_step = state_dict["global_step"]
+    trainer.state.max_steps = state_dict["max_steps"]
+    trainer.state.num_train_epochs = state_dict["num_train_epochs"]
+    trainer.state.log_history = state_dict["log_history"]
+    trainer.state.best_metric = state_dict["best_metric"]
+    trainer.state.best_model_checkpoint = state_dict["best_model_checkpoint"]
+
+    # Return any additional info that was saved
+    return state_dict.get("additional_info", {})
+
+def model_init():
+    return XLMRobertaForTokenClassification.from_pretrained(model_checkpoint,
+                                                            config=xlmr_config).to(device)
+
+# model training arguments
+num_epochs=3
+batch_size=32
+logging_steps = len(panx_de_encoded['train']) // batch_size
+model_name = f'{model_checkpoint}_finetuned_panx_de'
+training_args = TrainingArguments(output_dir=model_name,
+                                  log_level='error',
+                                  evaluation_strategy='epoch',
+                                  per_device_train_batch_size=batch_size,
+                                  per_device_eval_batch_size=batch_size,
+                                  learning_rate=5e-5,
+                                  weight_decay=0.01,
+                                  num_train_epochs=num_epochs,
+                                  logging_steps=logging_steps,
+                                  save_steps=1e6, # avoiding saving checkpoints
+                                  seed=42,
+                                  fp16=False,
+                                  disable_tqdm=False,
+                                  push_to_hub=False
+                                  )
+
+data_collator = DataCollatorForTokenClassification(xlmr_tokenizer)
+trainer = Trainer(model_init=model_init,
                   args=training_args,
                   data_collator=data_collator,
-                  tokenizer=tokenizer,
                   train_dataset=panx_de_encoded['train'],
                   eval_dataset=panx_de_encoded['validation'],
-                  compute_metrics=compute_merics)
+                  compute_metrics=compute_merics,
+                  tokenizer=xlmr_tokenizer)
 
+load_trainer_state(trainer, load_dir="./data/panx_de_checkpoints")
 
+res = trainer.predict(panx_de_encoded['test'])
+res.metrics['test_f1']
 
 
 
