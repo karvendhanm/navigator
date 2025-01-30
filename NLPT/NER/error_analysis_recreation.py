@@ -144,6 +144,11 @@ def save_trainer_state(trainer: Trainer, save_dir: str, additional_info: Optiona
         torch.save(trainer.lr_scheduler.state_dict(),
                    os.path.join(save_dir, "scheduler.pt"))
 
+    # Save training arguments
+    training_args_dict = trainer.args.to_dict()
+    with open(os.path.join(save_dir, "training_args.json"), "w") as f:
+        json.dump(training_args_dict, f, indent=2)
+
     # Save training state
     state_dict = {
         "epoch": trainer.state.epoch,
