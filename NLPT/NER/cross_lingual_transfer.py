@@ -1,3 +1,4 @@
+from collections import defaultdict
 from seqeval.metrics import f1_score
 from transformers import AutoConfig, AutoModelForTokenClassification, AutoTokenizer
 from transformers import DataCollatorForTokenClassification
@@ -8,6 +9,7 @@ from typing import Dict, Any
 import json
 import numpy as np
 import os
+import pandas as pd
 import pickle
 import torch
 
@@ -64,12 +66,12 @@ def load_trainer_state(trainer: Trainer, load_dir: str) -> Dict[str, Any]:
         Dictionary containing any additional info that was saved
     """
     # Load training arguments if they exist
-    training_args_path = os.path.join(load_dir, "training_args.json")
-    if os.path.exists(training_args_path):
-        with open(training_args_path, "r") as f:
-            training_args_dict = json.load(f)
-            # Create new TrainingArguments object with loaded values
-            trainer.args = TrainingArguments(**training_args_dict)
+    # training_args_path = os.path.join(load_dir, "training_args.json")
+    # if os.path.exists(training_args_path):
+    #     with open(training_args_path, "r") as f:
+    #         training_args_dict = json.load(f)
+    #         # Create new TrainingArguments object with loaded values
+    #         trainer.args = TrainingArguments(**training_args_dict)
 
     # Load the model
     trainer.model.load_state_dict(
@@ -106,13 +108,37 @@ def load_trainer_state(trainer: Trainer, load_dir: str) -> Dict[str, Any]:
     # Return any additional info that was saved
     return state_dict.get("additional_info", {})
 
+
 def model_init():
     return XLMRobertaForTokenClassification.from_pretrained(model_checkpoint,
                                                             config=xlmr_config).to(device)
 
 
+# # model training arguments
+# num_epochs=3
+# batch_size=32
+# logging_steps = len(panx_de_encoded['train']) // batch_size
+# model_name = f'{model_checkpoint}_finetuned_panx_de'
+# training_args = TrainingArguments(output_dir=model_name,
+#                                   log_level='error',
+#                                   evaluation_strategy='epoch',
+#                                   per_device_train_batch_size=batch_size,
+#                                   per_device_eval_batch_size=batch_size,
+#                                   learning_rate=5e-5,
+#                                   weight_decay=0.01,
+#                                   num_train_epochs=num_epochs,
+#                                   logging_steps=logging_steps,
+#                                   save_steps=1e6, # avoiding saving checkpoints
+#                                   seed=42,
+#                                   fp16=False,
+#                                   disable_tqdm=False,
+#                                   push_to_hub=False
+#                                   )
+
+
 data_collator = DataCollatorForTokenClassification(xlmr_tokenizer)
 trainer = Trainer(model_init=model_init,
+                  # args = training_args,
                   data_collator=data_collator,
                   train_dataset=panx_de_encoded['train'],
                   eval_dataset=panx_de_encoded['validation'],
@@ -121,6 +147,29 @@ trainer = Trainer(model_init=model_init,
 
 load_trainer_state(trainer, load_dir="./data/panx_de_checkpoints")
 
+
+def get_f1_score(trainer, dataset):
+    return trainer.predict(dataset).metrics['test_f1']
+
+
+f1_scores = defaultdict(dict)
+f1_scores['de']['de'] = get_f1_score(trainer, panx_de_encoded['test'])
+print(f'F1-score of [de] model on [de] dataset: {f1_scores["de"]["de"]:.3f}')
+
+
+def tag_text(tokenizer, model, tags, text):
+    tokenized_input = tokenizer(text, truncation=True, return_tensors='pt')
+    tokens = tokenized_input.tokens()
+    input_ids = tokenized_input['input_ids'].to(device)
+    output = model(input_ids)
+    predictions = torch.argmax(output.logits, dim=-1)[0].cpu().numpy()
+    predicted_ner_tags = tags.int2str(predictions)
+    return pd.DataFrame({'Tokens':tokens, 'Tags':predicted_ner_tags}).T
+
+
+text_fr = 'Jeff Dean est informaticien chez Google en Californie'
+df = tag_text(xlmr_tokenizer, trainer.model, tags, text_fr)
+print(df)
 
 
 
