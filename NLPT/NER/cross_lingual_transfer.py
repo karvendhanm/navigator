@@ -7,6 +7,7 @@ from transformers import XLMRobertaForTokenClassification
 from typing import Dict, Any
 
 import json
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
@@ -114,31 +115,31 @@ def model_init():
                                                             config=xlmr_config).to(device)
 
 
-# # model training arguments
-# num_epochs=3
-# batch_size=32
-# logging_steps = len(panx_de_encoded['train']) // batch_size
-# model_name = f'{model_checkpoint}_finetuned_panx_de'
-# training_args = TrainingArguments(output_dir=model_name,
-#                                   log_level='error',
-#                                   evaluation_strategy='epoch',
-#                                   per_device_train_batch_size=batch_size,
-#                                   per_device_eval_batch_size=batch_size,
-#                                   learning_rate=5e-5,
-#                                   weight_decay=0.01,
-#                                   num_train_epochs=num_epochs,
-#                                   logging_steps=logging_steps,
-#                                   save_steps=1e6, # avoiding saving checkpoints
-#                                   seed=42,
-#                                   fp16=False,
-#                                   disable_tqdm=False,
-#                                   push_to_hub=False
-#                                   )
+# model training arguments
+num_epochs=3
+batch_size=32
+logging_steps = len(panx_de_encoded['train']) // batch_size
+model_name = f'{model_checkpoint}_finetuned_panx_de'
+training_args = TrainingArguments(output_dir=model_name,
+                                  log_level='error',
+                                  evaluation_strategy='epoch',
+                                  per_device_train_batch_size=batch_size,
+                                  per_device_eval_batch_size=batch_size,
+                                  learning_rate=5e-5,
+                                  weight_decay=0.01,
+                                  num_train_epochs=num_epochs,
+                                  logging_steps=logging_steps,
+                                  save_steps=1e6, # avoiding saving checkpoints
+                                  seed=42,
+                                  fp16=False,
+                                  disable_tqdm=False,
+                                  push_to_hub=False
+                                  )
 
 
 data_collator = DataCollatorForTokenClassification(xlmr_tokenizer)
 trainer = Trainer(model_init=model_init,
-                  # args = training_args,
+                  args = training_args,
                   data_collator=data_collator,
                   train_dataset=panx_de_encoded['train'],
                   eval_dataset=panx_de_encoded['validation'],
@@ -208,6 +209,43 @@ f1_scores['de']['it'] = evaluate_lang_performance('it', trainer)
 print(f'F1-score of [de] model on [it] dataset: {f1_scores["de"]["it"]:.3f}')
 f1_scores['de']['en'] = evaluate_lang_performance('en', trainer)
 print(f'F1-score of [de] model on [en] dataset: {f1_scores["de"]["en"]:.3f}')
+
+
+def train_on_subset(dataset, num_samples):
+    train_ds = dataset['train'].shuffle(seed=42).select(range(num_samples))
+    valid_ds = dataset['validation']
+    test_ds = dataset['test']
+    training_args.logging_steps = len(train_ds) // batch_size
+
+    trainer = Trainer(model_init=model_init,
+                      args=training_args,
+                      data_collator=data_collator,
+                      train_dataset=train_ds,
+                      eval_dataset=valid_ds,
+                      compute_metrics=compute_merics,
+                      tokenizer=xlmr_tokenizer)
+    trainer.train()
+
+    f1_score = get_f1_score(trainer, test_ds)
+    return pd.DataFrame.from_dict({'num_samples': [len(train_ds)],
+                                   'f1_score': [f1_score]})
+
+
+panx_fr_encoded = encode_panx_dataset(panx_ch['fr'])
+metrics_df = train_on_subset(panx_fr_encoded, 250)
+
+for num_samples in [500, 1000, 2000, 4000]:
+    metrics_df = pd.concat([metrics_df, train_on_subset(panx_fr_encoded, num_samples)], axis=0)
+metrics_df.reset_index(inplace=True, drop=True)
+
+fig, ax = plt.subplots()
+ax.axhline(f1_scores['de']['fr'], color='r', ls='--')
+metrics_df.set_index('num_samples').plot(ax=ax)
+plt.xlabel('number of training examples')
+plt.ylabel('f1-score')
+plt.ylim((0, 1))
+plt.legend(['Zero-shot from de', 'Fine-tuned on fr'], loc='lower right')
+plt.show()
 
 
 
