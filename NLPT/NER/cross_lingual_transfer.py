@@ -278,6 +278,37 @@ for lang in langs:
     print(f'F1-score of [de-fr] model on [{lang}] dataset: {f1:.3f}')
 
 
+corpora = [panx_de_encoded]
+for lang in langs[1:]:
+    training_args.output_dir = f'xlm-roberta-base-finetuned-panx-{lang}'
+    ds_encoded = encode_panx_dataset(panx_ch[lang])
+    metrics = train_on_subset(ds_encoded, ds_encoded['train'].num_rows)
+    f1_scores[lang][lang] = metrics['f1_score'][0]
+    corpora.append(ds_encoded)
+
+corpora_encoded = concatenate_splits(corpora)
+training_args.output_dir = 'xlm-roberta-base-finetuned-panx_all'
+training_args.logging_steps = len(corpora_encoded['train'])//batch_size
+training_args.push_to_hub = True
+
+trainer = Trainer(model_init=model_init,
+                  args=training_args,
+                  data_collator=data_collator,
+                  train_dataset=corpora_encoded['train'],
+                  eval_dataset=corpora_encoded['validation'],
+                  compute_metrics=compute_merics,
+                  tokenizer=xlmr_tokenizer)
+trainer.train()
+trainer.push_to_hub(commit_message='Training completed')
+
+for idx, lang in enumerate(langs):
+    f1_scores['all'][lang] = get_f1_score(trainer, corpora[idx]['test'])
+scores_data = {'de': f1_scores['de'],
+              'each': {lang: f1_scores[lang][lang] for lang in langs},
+              'all': f1_scores['all']}
+f1_scores_df = pd.DataFrame(scores_data).T.round(4)
+f1_scores_df.rename_axis(index='Fine-tune-on', columns='Evaluated on', inplace=True)
+f1_scores_df
 
 
 
