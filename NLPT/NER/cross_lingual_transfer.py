@@ -202,9 +202,12 @@ def evaluate_lang_performance(lang, trainer):
     return get_f1_score(trainer, panx_ds['test'])
 
 
-print(evaluate_lang_performance('fr', trainer))
-print(evaluate_lang_performance('it', trainer))
-print(evaluate_lang_performance('en', trainer))
+f1_scores['de']['fr'] = evaluate_lang_performance('fr', trainer)
+print(f'F1-score of [de] model on [fr] dataset: {f1_scores["de"]["fr"]:.3f}')
+f1_scores['de']['it'] = evaluate_lang_performance('it', trainer)
+print(f'F1-score of [de] model on [it] dataset: {f1_scores["de"]["it"]:.3f}')
+f1_scores['de']['en'] = evaluate_lang_performance('en', trainer)
+print(f'F1-score of [de] model on [en] dataset: {f1_scores["de"]["en"]:.3f}')
 
 
 
