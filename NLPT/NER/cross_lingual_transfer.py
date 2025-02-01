@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datasets import DatasetDict, concatenate_datasets
 from seqeval.metrics import f1_score
 from transformers import AutoConfig, AutoModelForTokenClassification, AutoTokenizer
 from transformers import DataCollatorForTokenClassification
@@ -246,6 +247,35 @@ plt.ylabel('f1-score')
 plt.ylim((0, 1))
 plt.legend(['Zero-shot from de', 'Fine-tuned on fr'], loc='lower right')
 plt.show()
+
+
+# fine-tuning the model on multi-language corpus.
+def concatenate_splits(corpora):
+    multi_corpus = DatasetDict()
+    for split in corpora[0].keys():
+        multi_corpus[split] = concatenate_datasets([corpus[split] for corpus in corpora]).shuffle(seed=42)
+    return multi_corpus
+
+
+panx_de_fr_encoded = concatenate_splits([panx_de_encoded, panx_fr_encoded])
+
+# fine-tuning the NER model
+training_args.logging_steps = len(panx_de_fr_encoded['train']) // batch_size
+training_args.output_dir = 'xlm-roberta-base-finetuned-de-fr'
+
+trainer = Trainer(model_init=model_init,
+                      args=training_args,
+                      data_collator=data_collator,
+                      train_dataset=panx_de_fr_encoded['train'],
+                      eval_dataset=panx_de_fr_encoded['validation'],
+                      compute_metrics=compute_merics,
+                      tokenizer=xlmr_tokenizer)
+trainer.train()
+
+langs = ['de', 'fr', 'it', 'en']
+for lang in langs:
+    f1 = evaluate_lang_performance(lang, trainer)
+    print(f'F1-score of [de-fr] model on [{lang}] dataset: {f1:.3f}')
 
 
 
