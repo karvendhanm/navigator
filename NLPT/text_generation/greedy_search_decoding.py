@@ -9,7 +9,7 @@ model_checkpoint = 'gpt2-xl'
 tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 model = AutoModelForCausalLM.from_pretrained(model_checkpoint).to(device)
 
-# greedy search decoding
+# greedy search decoding by custom method
 input_txt = 'Transformers are the'
 input_ids = tokenizer(input_txt, return_tensors='pt')['input_ids'].to(device)
 iterations = []
@@ -35,3 +35,18 @@ with torch.no_grad():
         iterations.append(iteration)
 
 pd.DataFrame(iterations)
+
+# greedy search decoding using transformers inbuilt generate method
+input_ids = tokenizer(input_txt, return_tensors='pt')['input_ids'].to(device)
+output = model.generate(input_ids, max_new_tokens=n_steps, do_sample=False)
+print(tokenizer.decode(output[0]))
+
+max_length = 128
+input_txt = """In a shocking finding, scientist discovered \
+a herd of unicorns living in a remote, previously unexplored \
+valley, in the Andes Mountains. Even more surprising to the \
+researchers was the fact that the unicorns spoke perfect English.\n\n
+"""
+input_ids = tokenizer(input_txt, return_tensors='pt')['input_ids'].to(device)
+output = model.generate(input_ids, max_length=max_length, do_sample=False)
+print(tokenizer.decode(output[0]))
