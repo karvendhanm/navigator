@@ -43,6 +43,20 @@ model = AutoModelForCausalLM.from_pretrained(model_checkpoint).to(device)
 # pd.DataFrame(iterations)
 
 
+def log_probs_from_logits(logits, generated_text_tokens):
+    logp = F.log_softmax(logits, dim=-1)
+    label_probs = torch.gather(logp, dim=2, index=generated_text_tokens)
+    return label_probs.squeeze(-1)
+
+
+def sequence_log_prob(model, generated_text_tokens, input_len):
+    with torch.no_grad():
+        output = model(generated_text_tokens)
+        log_probs = log_probs_from_logits(output.logits[:, :-1, :], generated_text_tokens[:, 1:].unsqueeze(2))
+        seq_log_prob = torch.sum(log_probs[:, input_len:])
+    return seq_log_prob.cpu().numpy()
+
+
 # decoding techniques
 # comparing log probability of a sequence using
 # greedy decoding and beam search decoding
@@ -53,25 +67,23 @@ valley, in the Andes Mountains. Even more surprising to the \
 researchers was the fact that the unicorns spoke perfect English.\n\n
 """
 input_ids = tokenizer(input_txt, return_tensors='pt')['input_ids'].to(device)
-output = model.generate(input_ids, max_length=max_length)
-print(f'the generated text is: {tokenizer.decode(output[0])}')
+output_greedy = model.generate(input_ids, max_length=max_length, do_sample=False)
+logp = sequence_log_prob(model, output_greedy, len(input_ids[0]))
+print(tokenizer.decode(output_greedy[0]))
+print(f'sequence from greedy decoding: {logp:.2f}')
 
+# generating text using beam search
+output_beam = model.generate(input_ids, max_length=max_length, num_beams=5, do_sample=False)
+logp = sequence_log_prob(model, output_beam, len(input_ids[0]))
+print(tokenizer.decode(output_beam[0]))
+print(f'sequence from beam search: {logp:.2f}')
 
-def log_probs_from_logits(logits, generated_text_tokens):
-    log_probs = F.log_softmax(logits, dim=-1)
-    token_probs = torch.gather(log_probs, dim=2, index=generated_text_tokens.unsqueeze(2)).squeeze(-1)
-    return token_probs
-
-
-def sequence_log_prob(model, generated_text_tokens, input_len):
-    output = model(generated_text_tokens)
-    log_probs = log_probs_from_logits(output.logits[:, :-1, :], generated_text_tokens[:, 1:])
-    return torch.sum(log_probs[:, input_len:]).cpu().numpy()
-
-
-print(sequence_log_prob(model, output, len(input_ids[0])))
-
-
+# both greedy decoding and beam search produces repetitve text
+# we can use no_repeat_ngram_size in the generate function to avoid repetition.
+output_beam = model.generate(input_ids, max_length=max_length, num_beams=5, do_sample=False, no_repeat_ngram_size=2)
+logp = sequence_log_prob(model, output_beam, len(input_ids[0]))
+print(tokenizer.decode(output_beam[0]))
+print(f'sequence from beam search: {logp:.2f}')
 
 
 
