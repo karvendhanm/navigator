@@ -1,3 +1,6 @@
+# FinBERT serves to extract only the sentiment of a financial statement.
+# must be useful at some point.
+
 from transformers import BertTokenizer, BertForSequenceClassification
 import torch
 
