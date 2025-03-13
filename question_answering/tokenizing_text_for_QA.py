@@ -1,4 +1,5 @@
 from transformers import AutoTokenizer, AutoModelForQuestionAnswering
+from transformers import pipeline
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -38,4 +39,10 @@ ax2.bar(x=token_idx, height=e_scores, color=e_colors)
 ax2.set_ylabel('End Scores')
 plt.xticks(token_idx, tokens, rotation='vertical')
 plt.show()
+
+pipe = pipeline(task='question-answering', model=model, tokenizer=tokenizer)
+pipe(question=question, context=context, topk=3)
+
+# empty answers.
+pipe(question='why is there no date?', context=context, handle_impossible_answer=True)
 
