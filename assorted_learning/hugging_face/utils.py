@@ -5,7 +5,7 @@ from sklearn.metrics import ConfusionMatrixDisplay, confusion_matrix
 from transformers import AutoTokenizer
 
 # importing local modules
-from hugging_face import config
+from assorted_learning.hugging_face import config
 
 # initializing AutoTokenizer
 tokenizer = AutoTokenizer.from_pretrained(config.model_ckpt)

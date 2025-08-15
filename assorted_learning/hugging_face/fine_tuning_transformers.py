@@ -5,15 +5,15 @@ import torch
 # the former has a classification head on top of the pretrained model, and
 # is easier to train. We just need to specify the number of classes.
 from datasets import load_dataset
-from transformers import AutoModelForSequenceClassification, AutoTokenizer
+from transformers import AutoModelForSequenceClassification
 from transformers import Trainer, TrainingArguments
 
 # system call
 os.system("")
 
 # importing local module
-from hugging_face import config
-from hugging_face import utils
+from assorted_learning.hugging_face import config
+from assorted_learning.hugging_face import utils
 
 # device
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
